@@ -1,0 +1,23 @@
+OLS regression on franke_function with polynomials of order 5, epsilon = 0.100000, n=20(squared)
+Regression parameter variance:
+Beta_0 = 3.7691694305650254e-05
+Beta_1 = 0.000429139810959255
+Beta_2 = 0.000331758170619463
+Beta_3 = 0.002090862940254401
+Beta_4 = 0.001355461414655356
+Beta_5 = 0.0014217353048786114
+R2 score: 0.873449
+MSE: 0.010937
+--k-cross--
+R2 score:  0.9690018663712742
+MSE:  0.002316569791715636
+--k-cross with ridge--
+R2 score:  0.9791986906528958
+MSE:  0.001975573604075491
+--k-cross with lasso--
+R2 score:  0.7441603674960817
+MSE:  0.020753965564900893
+Bias^2:  0.0001932747360249845
+Variance:  0.08999127301101799
+R2 score: 0.383382
+MSE: 0.017241
