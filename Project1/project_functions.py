@@ -84,6 +84,143 @@ def calc_bias(y, y_tilde):
 def calc_variance(y_tilde):
     return np.mean((y_tilde - np.mean(y_tilde))**2)
 
+
+def k_cross_Franke(n=10, k=10, eps=0, max_order=5):
+    x = np.random.uniform(size=n)
+    y = np.random.uniform(size=n)
+    err = eps * np.random.normal(size=(n*n))
+    x_mesh, y_mesh = np.meshgrid(x, y)
+    x, y = x_mesh.flatten(), y_mesh.flatten()
+    z_mesh = franke_function(x_mesh, y_mesh)
+    z = z_mesh.flatten() + err
+
+    return k_cross(x, y, z, k, max_order)
+
+def k_cross(x, y, z, k=10, max_order=5):
+
+    sub_arrays_x = np.array_split(x, k); sub_arrays_y = np.array_split(y, k); sub_arrays_z = np.array_split(z, k)
+    test_errors = np.zeros((k, max_order))
+    R2_scores = np.zeros((k, max_order))
+    biases = np.zeros((k, max_order))
+    variances = np.zeros((k, max_order))
+
+    train_errors = np.zeros((k, max_order))
+
+
+
+    for k_ in range(k):
+        x_train = np.concatenate(sub_arrays_x[:k_] + sub_arrays_x[k_+1:])
+        x_valid = sub_arrays_x[k_]
+        y_train = np.concatenate(sub_arrays_y[:k_] + sub_arrays_y[k_+1:])
+        y_valid = sub_arrays_y[k_]
+        z_train = np.concatenate(sub_arrays_z[:k_] + sub_arrays_z[k_+1:])
+        z_valid = sub_arrays_z[k_]
+
+        for order in range(1, max_order+1):
+            exponents = poly_exponents(order)
+            xb = design_matrix(x_train, y_train, exponents)
+            X_val = design_matrix(x_valid, y_valid, exponents)
+            beta = np.linalg.inv(xb.T.dot(xb)).dot(xb.T).dot(z_train)
+            zhat = X_val @ beta
+            test_errors[k_, order-1] = MSE(z_valid, zhat)
+            R2_scores[k_, order-1] = R2(z_valid, zhat)
+            biases[k_, order-1] = calc_bias(z_valid, zhat)
+            variances[k_, order-1] = calc_variance(zhat)
+
+            z_train_hat = xb @ beta
+            train_errors[k_, order-1] = MSE(z_train, z_train_hat)
+
+    test_error = np.mean(test_errors, axis=0)
+    r2 = np.mean(R2_scores, axis=0)
+    bias = np.mean(biases, axis=0)
+    variance = np.mean(variances, axis=0)
+
+    train_error = np.mean(train_errors, axis=0)
+
+    return test_error, r2, bias, variance, train_error
+
+def k_cross_Franke_ridge(n=10, k=10, eps=0, order=5):
+
+    x = np.random.uniform(size=n)
+    y = np.random.uniform(size=n)
+    err = eps * np.random.normal(size=(n*n))
+    x_mesh, y_mesh = np.meshgrid(x, y)
+    x, y = x_mesh.flatten(), y_mesh.flatten()
+    z_mesh = franke_function(x_mesh, y_mesh)
+    z = z_mesh.flatten() + err
+
+    return k_cross_ridge(x, y, z, k, order)
+
+def k_cross_ridge(x, y, z, k=10, order=5):
+    m = 50
+    l = np.exp(np.linspace(-20, 3, m))
+    
+    sub_arrays_x = np.array_split(x, k); sub_arrays_y = np.array_split(y, k); sub_arrays_z = np.array_split(z, k)
+    test_errors = np.zeros((k, m))
+    R2_scores = np.zeros((k, m))
+    biases = np.zeros((k, m))
+    variances = np.zeros((k, m))
+
+    train_errors = np.zeros((k, m))
+
+    for k_ in range(k):
+        x_train = np.concatenate(sub_arrays_x[:k_] + sub_arrays_x[k_+1:])
+        x_valid = sub_arrays_x[k_]
+        y_train = np.concatenate(sub_arrays_y[:k_] + sub_arrays_y[k_+1:])
+        y_valid = sub_arrays_y[k_]
+        z_train = np.concatenate(sub_arrays_z[:k_] + sub_arrays_z[k_+1:])
+        z_valid = sub_arrays_z[k_]
+
+        for i_l, l_ in enumerate(l):
+            exponents = poly_exponents(order)
+            xb = design_matrix(x_train, y_train, exponents)
+            X_val = design_matrix(x_valid, y_valid, exponents)
+
+            l_eye = l_ * np.eye(xb.shape[1])
+            beta = np.linalg.inv(xb.T.dot(xb) + l_eye).dot(xb.T).dot(z_train)
+            zhat = X_val @ beta
+            test_errors[k_, i_l] = MSE(z_valid, zhat)
+            R2_scores[k_, i_l] = R2(z_valid, zhat)
+            biases[k_, i_l] = calc_bias(z_valid, zhat)
+            variances[k_, i_l] = calc_variance(zhat)
+
+            z_train_hat = xb @ beta
+            train_errors[k_, i_l] = MSE(z_train, z_train_hat)
+
+    test_error = np.mean(test_errors, axis=0)
+    r2 = np.mean(R2_scores, axis=0)
+    bias = np.mean(biases, axis=0)
+    variance = np.mean(variances, axis=0)
+
+    train_error = np.mean(train_errors, axis=0)
+
+    return test_error, r2, bias, variance, train_error, l
+
+def franke_lasso(n=10, eps=0.1):
+    max_order = 5
+    x = np.random.uniform(size=n)
+    y = np.random.uniform(size=n)
+    err = eps * np.random.normal(size=(n*n))
+    
+    x_mesh, y_mesh = np.meshgrid(x, y)
+    x, y = x_mesh.flatten(), y_mesh.flatten()
+
+    x_train = x[:int(n*n/2)]; y_train = y[:int(n*n/2)]; err_train = err[:int(n*n/2)]
+    x_valid = x[int(n*n/2):]; y_valid = y[int(n*n/2):]; err_valid = err[int(n*n/2):]
+
+    z_train = franke_function(x_train, y_train) + err_train
+    z_valid = franke_function(x_valid, y_valid) + err_valid
+    exponents = poly_exponents(max_order)
+    xb = design_matrix(x_train, y_train, exponents)[:,1:] # cut intercept column
+
+    lasso=linear_model.LassoCV(max_iter=100000, cv=10)
+    lasso.fit(xb, z_train)
+    predl=lasso.predict(design_matrix(x_valid, y_valid, exponents)[:,1:])
+
+    return MSE(z_valid, predl), R2(z_valid, predl), calc_bias(z_valid, predl), calc_variance(predl)
+
+## old bad k_cross
+"""
 def k_cross_Franke(n=10, k=10, eps=0, max_order=5):
     x = np.random.uniform(size=n)
     y = np.random.uniform(size=n)
@@ -150,114 +287,6 @@ def k_cross_Franke(n=10, k=10, eps=0, max_order=5):
         R2_score_list.append(R2(z, zhat))
         bias_list.append(calc_bias(z, zhat))
         variance_list.append(calc_variance(zhat))
-    """
-    mse = np.mean(mses, axis=0)
-    r2 = np.mean(R2_scores, axis=0)
-    bias = np.mean(biases, axis=0)
-    variance = np.mean(variances, axis=0)
-    """
     
     return mse_list, R2_score_list, bias_list, variance_list
-
-def k_cross_Franke_ridge(n=10, k=10, eps=0):
-    m = 50
-    l = np.exp(np.linspace(-20, 3, m))
-    order = 5
-    x = np.random.uniform(size=n)
-    y = np.random.uniform(size=n)
-    err = eps * np.random.normal(size=(n*n))
-    
-    x_mesh, y_mesh = np.meshgrid(x, y)
-    x, y = x_mesh.flatten(), y_mesh.flatten()
-
-    z_mesh = franke_function(x_mesh, y_mesh)
-    z = z_mesh.flatten()
-    
-    sub_arrays_x = np.array_split(x, k); sub_arrays_y = np.array_split(y, k); sub_arrays_err = np.array_split(err, k)
-    mses = np.zeros((k, m))
-    R2_scores = np.zeros((k, m))
-    biases = np.zeros((k, m))
-    variances = np.zeros((k, m))
-
-    beta_list = []
-    betas = []
-    mse_list = []
-    R2_score_list = []
-    bias_list = []
-    variance_list =[]
-
-
-    for k_ in range(k):
-        x_train = np.concatenate(sub_arrays_x[:k_] + sub_arrays_x[k_+1:])
-        x_valid = sub_arrays_x[k_]
-        y_train = np.concatenate(sub_arrays_y[:k_] + sub_arrays_y[k_+1:])
-        y_valid = sub_arrays_y[k_]
-        err_train = np.concatenate(sub_arrays_err[:k_] + sub_arrays_err[k_+1:])
-        err_valid = sub_arrays_err[k_]
-
-        z_train = franke_function(x_train, y_train) + err_train
-        z_valid = franke_function(x_valid, y_valid) + err_valid
-
-        beta_list.append([])
-        for i_l, l_ in enumerate(l):
-            exponents = poly_exponents(order)
-            xb = design_matrix(x_train, y_train, exponents)
-            X_val = design_matrix(x_valid, y_valid, exponents)
-
-            l_eye = l_ * np.eye(xb.shape[1])
-            beta = np.linalg.inv(xb.T.dot(xb) + l_eye).dot(xb.T).dot(z_train)
-            zhat = X_val @ beta
-            mses[k_, i_l] = MSE(z_valid, zhat)
-            R2_scores[k_, i_l] = R2(z_valid, zhat)
-            biases[k_, i_l] = calc_bias(z_valid, zhat)
-            variances[k_, i_l] = calc_variance(zhat)
-
-            beta_list[k_].append(beta)
-    
-    # find mean betas
-    for i_l, l_ in enumerate(l):
-        betasum = np.zeros(len(poly_exponents(order)))
-        for k_ in range(k):
-            betasum += np.array(beta_list[k_][i_l])
-        betas.append(betasum/k)
-
-    #test fit on mean betas
-    for i_l, l_ in enumerate(l):
-        exponents = poly_exponents(order)
-        X_val = design_matrix(x, y, exponents)
-        zhat = X_val @ betas[i_l]
-        mse_list.append(MSE(z, zhat))
-        R2_score_list.append(R2(z, zhat))
-        bias_list.append(calc_bias(z, zhat))
-        variance_list.append(calc_variance(zhat))
-    """
-    mse = np.mean(mses, axis=0)
-    r2 = np.mean(R2_scores, axis=0)
-    bias = np.mean(biases, axis=0)
-    variance = np.mean(variances, axis=0)
-    """
-
-    return mse_list, R2_score_list, bias_list, variance_list, l
-
-def franke_lasso(n=10, eps=0.1):
-    max_order = 5
-    x = np.random.uniform(size=n)
-    y = np.random.uniform(size=n)
-    err = eps * np.random.normal(size=(n*n))
-    
-    x_mesh, y_mesh = np.meshgrid(x, y)
-    x, y = x_mesh.flatten(), y_mesh.flatten()
-
-    x_train = x[:int(n*n/2)]; y_train = y[:int(n*n/2)]; err_train = err[:int(n*n/2)]
-    x_valid = x[int(n*n/2):]; y_valid = y[int(n*n/2):]; err_valid = err[int(n*n/2):]
-
-    z_train = franke_function(x_train, y_train) + err_train
-    z_valid = franke_function(x_valid, y_valid) + err_valid
-    exponents = poly_exponents(max_order)
-    xb = design_matrix(x_train, y_train, exponents)
-
-    lasso=linear_model.LassoCV(max_iter=100000, cv=5)
-    lasso.fit(xb, z_train)
-    predl=lasso.predict(design_matrix(x_valid, y_valid, exponents))
-
-    return MSE(z_valid, predl), R2(z_valid, predl), calc_bias(z_valid, predl), calc_variance(predl)
+"""
