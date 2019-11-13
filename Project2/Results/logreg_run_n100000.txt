@@ -1,0 +1,17 @@
+sklearn logistic regression score:  0.958041958041958
+Iterate...
+Iteration:  0  Cost:  344.2646243275013
+Iteration:  10000  Cost:  6.570137185517127
+Iteration:  20000  Cost:  4.393215292953413
+Iteration:  30000  Cost:  3.281062175192413
+Iteration:  40000  Cost:  2.6052159973013853
+Iteration:  50000  Cost:  2.1534624217040226
+Iteration:  60000  Cost:  1.8315946498686926
+Iteration:  70000  Cost:  1.5913737443167943
+Iteration:  80000  Cost:  1.405630225548026
+Iteration:  90000  Cost:  1.2579475149058033
+Gradient norm:  [0.00109973]
+Accuracy score of implementation of logistic regression by gradient descent:  0.9440559440559441
+averaging over  50  neural networks...
+Accuracy score of cancer data prediction from implementation of nn:  0.9696503496503498
+Accuracy score using sklearn MLPClassifier:  0.9650349650349649

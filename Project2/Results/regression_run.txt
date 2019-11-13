@@ -1,0 +1,11 @@
+OLS regression on franke_function with polynomials of order 5, epsilon = 0.100000, n=40(squared)
+R2 score: 0.879958
+MSE: 0.011695
+Neural network fit on franke_function with polynomials of order 5, epsilon = 0.100000, n=40(squared)
+training neural network...
+test data:
+R2 score: 0.906037
+MSE: 0.011950
+plot data:
+R2 score: 0.948459
+MSE: 0.004215
